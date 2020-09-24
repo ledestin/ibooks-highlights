@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+
+require "sqlite3"
+
+book_db=`ls ~/Library/Containers/com.apple.iBooksX/Data/Documents/BKLibrary/*.sqlite`.chomp
+annotation_db=`ls ~/Library/Containers/com.apple.iBooksX/Data/Documents/AEAnnotation/*.sqlite`.chomp
+@output_dir = "./tmp/"
+
+books_sql = <<-SQL
+  SELECT
+          ZASSETID AS id,
+          ZTITLE AS Title,
+          ZAUTHOR AS Author
+  FROM ZBKLIBRARYASSET
+  WHERE ZTITLE IS NOT NULL
+SQL
+
+@annotations_sql = <<-SQL
+  SELECT
+          ZANNOTATIONREPRESENTATIVETEXT as BroaderText,
+          ZANNOTATIONSELECTEDTEXT as SelectedText,
+          ZANNOTATIONNOTE as Note,
+          ZFUTUREPROOFING5 as Chapter,
+          ZANNOTATIONCREATIONDATE as Created,
+          ZANNOTATIONMODIFICATIONDATE as Modified,
+          ZANNOTATIONASSETID
+  FROM ZAEANNOTATION
+  WHERE ZANNOTATIONSELECTEDTEXT IS NOT NULL
+        AND ZANNOTATIONASSETID = ?
+  ORDER BY ZANNOTATIONASSETID ASC, Created ASC
+SQL
+
+def fetch_highlights(book_id)
+  @annotations.query @annotations_sql, book_id
+end
+
+def store_highlights(author, title, highlights)
+  output_file_name = File.join(@output_dir, "#{author} - #{title}.txt")
+
+  File.open(output_file_name, "w+") do |output_file|
+    highlights.each do |highlight|
+      output_file.puts highlight["SelectedText"], "\n"
+    end
+  end
+end
+
+Dir.mkdir @output_dir unless Dir.exists? @output_dir
+
+books = SQLite3::Database.open book_db
+@annotations = SQLite3::Database.open annotation_db
+@annotations.results_as_hash = true
+
+books.query(books_sql).each do |book|
+  id, title, author = *book
+
+  highlights = fetch_highlights id
+  next if highlights.count.zero?
+
+  puts "#{author} - #{title}"
+  highlights.reset
+  store_highlights author, title, highlights
+end
