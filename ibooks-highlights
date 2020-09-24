@@ -4,7 +4,7 @@ require "sqlite3"
 
 book_db=`ls ~/Library/Containers/com.apple.iBooksX/Data/Documents/BKLibrary/*.sqlite`.chomp
 annotation_db=`ls ~/Library/Containers/com.apple.iBooksX/Data/Documents/AEAnnotation/*.sqlite`.chomp
-@output_dir = "./tmp/"
+@output_dir = "./iBooks Highlights/"
 
 books_sql = <<-SQL
   SELECT
